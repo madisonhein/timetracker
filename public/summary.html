@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Time Tracker — Weekly Summary</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    nav {
+      background: #1a1a2e;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      height: 56px;
+    }
+
+    nav .brand {
+      color: #fff;
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      margin-right: auto;
+    }
+
+    nav a {
+      color: #ccc;
+      text-decoration: none;
+      font-size: 0.9rem;
+      padding: 0 16px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      transition: color 0.15s, background 0.15s;
+    }
+
+    nav a:hover { color: #fff; background: rgba(255,255,255,0.06); }
+    nav a.active { color: #fff; border-bottom: 3px solid #4f8ef7; }
+
+    .page {
+      max-width: 900px;
+      margin: 40px auto;
+      padding: 0 16px 48px;
+    }
+
+    .page-header {
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-between;
+      margin-bottom: 28px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+    }
+
+    .week-label {
+      font-size: 0.9rem;
+      color: #666;
+      background: #fff;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 6px 14px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+      overflow: hidden;
+      margin-bottom: 32px;
+    }
+
+    .card-title {
+      padding: 16px 20px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: #444;
+      background: #f8f9fa;
+      border-bottom: 1px solid #e5e7eb;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    thead th {
+      padding: 10px 16px;
+      text-align: left;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #888;
+      background: #f8f9fa;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    tbody tr {
+      border-bottom: 1px solid #f0f0f0;
+      transition: background 0.1s;
+    }
+
+    tbody tr:last-child { border-bottom: none; }
+    tbody tr:hover { background: #f8faff; }
+
+    td {
+      padding: 12px 16px;
+      font-size: 0.93rem;
+      vertical-align: middle;
+    }
+
+    .hours-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-weight: 600;
+      font-size: 0.88rem;
+    }
+
+    .hours-badge.zero  { background: #f1f5f9; color: #94a3b8; }
+    .hours-badge.low   { background: #fef9c3; color: #a16207; }
+    .hours-badge.mid   { background: #dbeafe; color: #1e40af; }
+    .hours-badge.high  { background: #dcfce7; color: #166534; }
+
+    .active-dot {
+      display: inline-block;
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #22c55e;
+      margin-right: 6px;
+      vertical-align: middle;
+      animation: pulse 1.4s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .shift-log { margin-top: 8px; }
+
+    .shift-row {
+      padding: 10px 16px;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 0.88rem;
+      display: grid;
+      grid-template-columns: 160px 1fr 90px 1fr;
+      gap: 8px;
+      align-items: start;
+    }
+
+    .shift-row:last-child { border-bottom: none; }
+
+    .shift-row .emp-name { font-weight: 600; color: #333; }
+    .shift-row .times { color: #555; line-height: 1.5; }
+    .shift-row .duration { color: #4f8ef7; font-weight: 600; }
+    .shift-row .note-text { color: #666; font-style: italic; }
+
+    .no-shifts {
+      padding: 32px;
+      text-align: center;
+      color: #aaa;
+      font-size: 0.95rem;
+    }
+
+    .refresh-btn {
+      background: none;
+      border: 1.5px solid #ddd;
+      border-radius: 8px;
+      padding: 6px 14px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      color: #555;
+      transition: border-color 0.15s, color 0.15s;
+    }
+
+    .refresh-btn:hover { border-color: #4f8ef7; color: #4f8ef7; }
+
+    .loading { padding: 32px; text-align: center; color: #aaa; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <span class="brand">TimeTracker</span>
+  <a href="/">Clock In/Out</a>
+  <a href="/summary.html" class="active">Weekly Summary</a>
+  <a href="/manual-entry.html">Manual Entry</a>
+</nav>
+
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h1>Weekly Summary</h1>
+      <div id="weekLabel" style="margin-top:4px; font-size:0.9rem; color:#666;">Loading…</div>
+    </div>
+    <button class="refresh-btn" onclick="loadSummary()">Refresh</button>
+  </div>
+
+  <!-- Hours totals table -->
+  <div class="card">
+    <div class="card-title">Hours This Week</div>
+    <div id="totalsTable"><div class="loading">Loading…</div></div>
+  </div>
+
+  <!-- Shift log -->
+  <div class="card">
+    <div class="card-title">Shift Log</div>
+    <div id="shiftLog"><div class="loading">Loading…</div></div>
+  </div>
+</div>
+
+<script>
+  function formatHours(minutes) {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    if (h === 0) return `${m}m`;
+    if (m === 0) return `${h}h`;
+    return `${h}h ${m}m`;
+  }
+
+  function hoursBadgeClass(minutes) {
+    if (minutes === 0) return 'zero';
+    if (minutes < 120) return 'low';
+    if (minutes < 300) return 'mid';
+    return 'high';
+  }
+
+  function formatDatetime(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleString([], {
+      weekday: 'short', month: 'short', day: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+  }
+
+  function formatDate(iso) {
+    if (!iso) return '';
+    return new Date(iso).toLocaleDateString([], {
+      weekday: 'short', month: 'short', day: 'numeric'
+    });
+  }
+
+  async function loadSummary() {
+    const res = await fetch('/api/weekly-summary');
+    const data = await res.json();
+
+    // Week label
+    document.getElementById('weekLabel').textContent =
+      `Week of ${formatDate(data.weekStart + 'T12:00:00')} – ${formatDate(data.weekEnd + 'T12:00:00')}`;
+
+    // Totals table
+    const employees = Object.keys(data.summary);
+    let totalsHtml = `
+      <table>
+        <thead>
+          <tr>
+            <th>Employee</th>
+            <th>Status</th>
+            <th>Total Hours</th>
+            <th>Shifts</th>
+          </tr>
+        </thead>
+        <tbody>
+    `;
+
+    for (const emp of employees) {
+      const { totalMinutes, shifts } = data.summary[emp];
+      const activeShift = shifts.find(s => s.clockOut === null);
+      const completedShifts = shifts.filter(s => s.clockOut !== null).length;
+      const cls = hoursBadgeClass(totalMinutes);
+
+      totalsHtml += `
+        <tr>
+          <td><strong>${emp}</strong></td>
+          <td>
+            ${activeShift
+              ? `<span class="active-dot"></span><span style="color:#15803d;font-size:0.88rem;font-weight:600;">Clocked In</span>`
+              : `<span style="color:#aaa;font-size:0.88rem;">—</span>`
+            }
+          </td>
+          <td><span class="hours-badge ${cls}">${formatHours(totalMinutes)}</span></td>
+          <td style="color:#888; font-size:0.88rem;">${completedShifts} shift${completedShifts !== 1 ? 's' : ''}</td>
+        </tr>
+      `;
+    }
+
+    totalsHtml += '</tbody></table>';
+    document.getElementById('totalsTable').innerHTML = totalsHtml;
+
+    // Shift log — collect all shifts, sort by clockIn desc
+    const allShifts = [];
+    for (const emp of employees) {
+      for (const shift of data.summary[emp].shifts) {
+        allShifts.push({ emp, ...shift });
+      }
+    }
+    allShifts.sort((a, b) => new Date(b.clockIn) - new Date(a.clockIn));
+
+    if (allShifts.length === 0) {
+      document.getElementById('shiftLog').innerHTML =
+        '<div class="no-shifts">No shifts recorded this week.</div>';
+      return;
+    }
+
+    let logHtml = '<div class="shift-log">';
+    for (const s of allShifts) {
+      const duration = s.minutes !== null ? formatHours(s.minutes) : '<span style="color:#22c55e;font-weight:600;">Active</span>';
+      const clockOutStr = s.clockOut ? formatDatetime(s.clockOut) : '<em style="color:#22c55e;">In progress</em>';
+
+      logHtml += `
+        <div class="shift-row">
+          <div class="emp-name">${s.emp}</div>
+          <div class="times">
+            <div>In: ${formatDatetime(s.clockIn)}</div>
+            <div>Out: ${clockOutStr}</div>
+          </div>
+          <div class="duration">${duration}</div>
+          <div class="note-text">${s.note || '<span style="color:#ccc;">No note</span>'}</div>
+        </div>
+      `;
+    }
+    logHtml += '</div>';
+    document.getElementById('shiftLog').innerHTML = logHtml;
+  }
+
+  loadSummary();
+</script>
+</body>
+</html>

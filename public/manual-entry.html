@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Time Tracker — Manual Entry</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f2f5;
+      color: #1a1a2e;
+      min-height: 100vh;
+    }
+
+    nav {
+      background: #1a1a2e;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      gap: 0;
+      height: 56px;
+    }
+
+    nav .brand {
+      color: #fff;
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      margin-right: auto;
+    }
+
+    nav a {
+      color: #ccc;
+      text-decoration: none;
+      font-size: 0.9rem;
+      padding: 0 16px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      transition: color 0.15s, background 0.15s;
+    }
+
+    nav a:hover { color: #fff; background: rgba(255,255,255,0.06); }
+    nav a.active { color: #fff; border-bottom: 3px solid #4f8ef7; }
+
+    .page {
+      max-width: 480px;
+      margin: 48px auto;
+      padding: 0 16px;
+    }
+
+    h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+
+    .subtitle {
+      color: #666;
+      font-size: 0.95rem;
+      margin-bottom: 32px;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 28px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #444;
+      margin-bottom: 6px;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+    }
+
+    select, input[type="date"], input[type="time"], textarea {
+      width: 100%;
+      padding: 10px 14px;
+      border: 1.5px solid #ddd;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-family: inherit;
+      color: #1a1a2e;
+      background: #fafafa;
+      transition: border-color 0.15s;
+      outline: none;
+    }
+
+    select:focus, input[type="date"]:focus, input[type="time"]:focus, textarea:focus {
+      border-color: #4f8ef7;
+      background: #fff;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .field { margin-bottom: 20px; }
+
+    .time-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      background: #4f8ef7;
+      color: #fff;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+
+    .btn:hover:not(:disabled) { opacity: 0.88; }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .message {
+      margin-top: 20px;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      display: none;
+    }
+
+    .message.success { background: #dcfce7; border: 1.5px solid #86efac; color: #166534; display: block; }
+    .message.error   { background: #fee2e2; border: 1.5px solid #fca5a5; color: #991b1b; display: block; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <span class="brand">TimeTracker</span>
+  <a href="/">Clock In/Out</a>
+  <a href="/summary.html">Weekly Summary</a>
+  <a href="/manual-entry.html" class="active">Manual Entry</a>
+</nav>
+
+<div class="page">
+  <h1>Manual Entry</h1>
+  <p class="subtitle">Add a past shift that wasn't clocked in automatically.</p>
+
+  <div class="card">
+    <div class="field">
+      <label for="employee">Employee</label>
+      <select id="employee">
+        <option value="">— Select your name —</option>
+      </select>
+    </div>
+
+    <div class="field">
+      <label for="date">Date</label>
+      <input type="date" id="date" />
+    </div>
+
+    <div class="time-row">
+      <div class="field">
+        <label for="clockIn">Clock In</label>
+        <input type="time" id="clockIn" />
+      </div>
+      <div class="field">
+        <label for="clockOut">Clock Out</label>
+        <input type="time" id="clockOut" />
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="note">What did you work on?</label>
+      <textarea id="note" placeholder="Brief description of your work…"></textarea>
+    </div>
+
+    <button class="btn" id="submitBtn">Save Entry</button>
+
+    <div class="message" id="message"></div>
+  </div>
+</div>
+
+<script>
+  const employeeEl = document.getElementById('employee');
+  const dateEl     = document.getElementById('date');
+  const clockInEl  = document.getElementById('clockIn');
+  const clockOutEl = document.getElementById('clockOut');
+  const noteEl     = document.getElementById('note');
+  const submitBtn  = document.getElementById('submitBtn');
+  const messageEl  = document.getElementById('message');
+
+  // Default date to today
+  const today = new Date().toISOString().slice(0, 10);
+  dateEl.value = today;
+  dateEl.max = today;
+
+  async function loadEmployees() {
+    const res = await fetch('/api/employees');
+    const employees = await res.json();
+    employees.forEach(name => {
+      const opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      employeeEl.appendChild(opt);
+    });
+  }
+
+  function showMessage(text, type) {
+    messageEl.textContent = text;
+    messageEl.className = `message ${type}`;
+    if (type === 'success') {
+      setTimeout(() => { messageEl.className = 'message'; }, 5000);
+    }
+  }
+
+  submitBtn.addEventListener('click', async () => {
+    const employee = employeeEl.value;
+    const date     = dateEl.value;
+    const clockIn  = clockInEl.value;
+    const clockOut = clockOutEl.value;
+    const note     = noteEl.value.trim();
+
+    if (!employee) return showMessage('Please select an employee.', 'error');
+    if (!date)     return showMessage('Please select a date.', 'error');
+    if (!clockIn)  return showMessage('Please enter a clock-in time.', 'error');
+    if (!clockOut) return showMessage('Please enter a clock-out time.', 'error');
+
+    // Client-side time validation
+    if (clockOut <= clockIn) {
+      return showMessage('Clock-out time must be after clock-in time.', 'error');
+    }
+
+    submitBtn.disabled = true;
+
+    const res = await fetch('/api/manual-entry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ employee, date, clockIn, clockOut, note })
+    });
+
+    const data = await res.json();
+    submitBtn.disabled = false;
+
+    if (res.ok) {
+      showMessage(`Entry saved for ${employee} on ${date}.`, 'success');
+      clockInEl.value  = '';
+      clockOutEl.value = '';
+      noteEl.value     = '';
+    } else {
+      showMessage(data.error || 'An error occurred.', 'error');
+    }
+  });
+
+  loadEmployees();
+</script>
+</body>
+</html>

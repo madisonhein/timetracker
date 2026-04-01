@@ -28,15 +28,15 @@ function writeLog(data) {
 
 function getWeekBounds() {
   const now = new Date();
-  const day = now.getDay(); // 0=Sun, 1=Mon, ...
-  const diffToMonday = (day === 0 ? -6 : 1 - day);
-  const monday = new Date(now);
-  monday.setHours(0, 0, 0, 0);
-  monday.setDate(now.getDate() + diffToMonday);
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  sunday.setHours(23, 59, 59, 999);
-  return { monday, sunday };
+  const day = now.getDay(); // 0=Sun, 1=Mon, 2=Tue, ...
+  const diffToTuesday = day >= 2 ? 2 - day : 2 - day - 7;
+  const tuesday = new Date(now);
+  tuesday.setHours(0, 0, 0, 0);
+  tuesday.setDate(now.getDate() + diffToTuesday);
+  const monday = new Date(tuesday);
+  monday.setDate(tuesday.getDate() + 6);
+  monday.setHours(23, 59, 59, 999);
+  return { monday: tuesday, sunday: monday };
 }
 
 // POST /api/clockin

@@ -178,7 +178,7 @@
     </div>
 
     <div class="field">
-      <label for="note">What did you work on?</label>
+      <label for="note">What did you work on? <span style="color:#ef4444;">*</span></label>
       <textarea id="note" placeholder="Brief description of your work…"></textarea>
     </div>
 
@@ -232,6 +232,7 @@
     if (!date)     return showMessage('Please select a date.', 'error');
     if (!clockIn)  return showMessage('Please enter a clock-in time.', 'error');
     if (!clockOut) return showMessage('Please enter a clock-out time.', 'error');
+    if (!note)     return showMessage('Please enter a description of what you worked on.', 'error');
 
     // Client-side time validation
     if (clockOut <= clockIn) {

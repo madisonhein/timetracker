@@ -26,13 +26,18 @@ function writeLog(data) {
   fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
 }
 
-function getWeekBounds() {
-  const now = new Date();
-  const day = now.getDay(); // 0=Sun, 1=Mon, 2=Tue, ...
-  const diffToTuesday = day >= 2 ? 2 - day : 2 - day - 7;
-  const tuesday = new Date(now);
-  tuesday.setHours(0, 0, 0, 0);
-  tuesday.setDate(now.getDate() + diffToTuesday);
+function getWeekBounds(weekStart) {
+  let tuesday;
+  if (weekStart) {
+    tuesday = new Date(weekStart + 'T00:00:00');
+  } else {
+    const now = new Date();
+    const day = now.getDay(); // 0=Sun, 1=Mon, 2=Tue, ...
+    const diffToTuesday = day >= 2 ? 2 - day : 2 - day - 7;
+    tuesday = new Date(now);
+    tuesday.setHours(0, 0, 0, 0);
+    tuesday.setDate(now.getDate() + diffToTuesday);
+  }
   const monday = new Date(tuesday);
   monday.setDate(tuesday.getDate() + 6);
   monday.setHours(23, 59, 59, 999);
@@ -98,7 +103,7 @@ app.get('/api/status/:name', (req, res) => {
 // GET /api/weekly-summary
 app.get('/api/weekly-summary', (req, res) => {
   const log = readLog();
-  const { monday, sunday } = getWeekBounds();
+  const { monday, sunday } = getWeekBounds(req.query.weekStart || null);
 
   const summary = {};
   for (const emp of EMPLOYEES) {

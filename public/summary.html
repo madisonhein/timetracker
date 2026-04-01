@@ -208,6 +208,101 @@
     }
 
     .loading { padding: 32px; text-align: center; color: #aaa; }
+
+    .shift-row { grid-template-columns: 150px 1fr 80px 1fr auto; }
+
+    .edit-btn {
+      background: none;
+      border: 1.5px solid #ddd;
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      color: #555;
+      white-space: nowrap;
+      transition: border-color 0.15s, color 0.15s;
+    }
+    .edit-btn:hover { border-color: #4f8ef7; color: #4f8ef7; }
+
+    /* Modal */
+    .modal-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+
+    .modal {
+      background: #fff;
+      border-radius: 12px;
+      padding: 28px;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+      margin: 16px;
+    }
+
+    .modal h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 20px; }
+
+    .modal label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: #444;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+
+    .modal input, .modal textarea, .modal select {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1.5px solid #ddd;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-family: inherit;
+      color: #1a1a2e;
+      background: #fafafa;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .modal input:focus, .modal textarea:focus, .modal select:focus {
+      border-color: #4f8ef7;
+      background: #fff;
+    }
+    .modal textarea { resize: vertical; min-height: 70px; }
+    .modal .field { margin-bottom: 16px; }
+    .modal .time-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+    .modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+
+    .modal-actions button {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-save   { background: #4f8ef7; color: #fff; }
+    .btn-save:hover { opacity: 0.88; }
+    .btn-cancel { background: #f1f5f9; color: #555; }
+    .btn-cancel:hover { background: #e2e8f0; }
+
+    .modal-message {
+      margin-top: 14px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.88rem;
+      display: none;
+    }
+    .modal-message.error { background: #fee2e2; border: 1.5px solid #fca5a5; color: #991b1b; display: block; }
   </style>
 </head>
 <body>
@@ -239,6 +334,40 @@
   <div class="card">
     <div class="card-title">Shift Log</div>
     <div id="shiftLog"><div class="loading">Loading…</div></div>
+  </div>
+</div>
+
+<!-- Edit modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2>Edit Shift</h2>
+    <div class="field">
+      <label>Employee</label>
+      <select id="modalEmployee"></select>
+    </div>
+    <div class="field">
+      <label>Date</label>
+      <input type="date" id="modalDate" />
+    </div>
+    <div class="time-row">
+      <div class="field">
+        <label>Clock In</label>
+        <input type="time" id="modalClockIn" />
+      </div>
+      <div class="field">
+        <label>Clock Out</label>
+        <input type="time" id="modalClockOut" />
+      </div>
+    </div>
+    <div class="field">
+      <label>Description <span style="color:#ef4444;">*</span></label>
+      <textarea id="modalNote"></textarea>
+    </div>
+    <div class="modal-message" id="modalMessage"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" onclick="saveEdit()">Save Changes</button>
+    </div>
   </div>
 </div>
 
@@ -366,6 +495,9 @@
     for (const s of allShifts) {
       const duration = s.minutes !== null ? formatHours(s.minutes) : '<span style="color:#22c55e;font-weight:600;">Active</span>';
       const clockOutStr = s.clockOut ? formatDatetime(s.clockOut) : '<em style="color:#22c55e;">In progress</em>';
+      const editBtn = s.clockOut
+        ? `<button class="edit-btn" onclick='openModal(${JSON.stringify(s)})'>Edit</button>`
+        : `<span></span>`;
 
       logHtml += `
         <div class="shift-row">
@@ -376,12 +508,81 @@
           </div>
           <div class="duration">${duration}</div>
           <div class="note-text">${s.note || '<span style="color:#ccc;">No note</span>'}</div>
+          <div>${editBtn}</div>
         </div>
       `;
     }
     logHtml += '</div>';
     document.getElementById('shiftLog').innerHTML = logHtml;
   }
+
+  // Modal
+  let editingOriginalClockIn = null;
+
+  async function openModal(shift) {
+    // Populate employee dropdown if empty
+    const empSelect = document.getElementById('modalEmployee');
+    if (empSelect.options.length === 0) {
+      const res = await fetch('/api/employees');
+      const employees = await res.json();
+      employees.forEach(name => {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        empSelect.appendChild(opt);
+      });
+    }
+
+    editingOriginalClockIn = shift.clockIn;
+    empSelect.value = shift.emp;
+    document.getElementById('modalDate').value = shift.date;
+    document.getElementById('modalClockIn').value = new Date(shift.clockIn).toTimeString().slice(0, 5);
+    document.getElementById('modalClockOut').value = new Date(shift.clockOut).toTimeString().slice(0, 5);
+    document.getElementById('modalNote').value = shift.note || '';
+    document.getElementById('modalMessage').className = 'modal-message';
+    document.getElementById('modalOverlay').classList.add('open');
+  }
+
+  function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('open');
+    editingOriginalClockIn = null;
+  }
+
+  async function saveEdit() {
+    const employee = document.getElementById('modalEmployee').value;
+    const date     = document.getElementById('modalDate').value;
+    const clockIn  = document.getElementById('modalClockIn').value;
+    const clockOut = document.getElementById('modalClockOut').value;
+    const note     = document.getElementById('modalNote').value.trim();
+    const msgEl    = document.getElementById('modalMessage');
+
+    if (!note) {
+      msgEl.textContent = 'Description is required.';
+      msgEl.className = 'modal-message error';
+      return;
+    }
+
+    const res = await fetch('/api/entry', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ originalClockIn: editingOriginalClockIn, employee, date, clockIn, clockOut, note })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      msgEl.textContent = data.error || 'An error occurred.';
+      msgEl.className = 'modal-message error';
+      return;
+    }
+
+    closeModal();
+    loadSummary();
+  }
+
+  // Close modal on overlay click
+  document.getElementById('modalOverlay').addEventListener('click', e => {
+    if (e.target === document.getElementById('modalOverlay')) closeModal();
+  });
 
   loadSummary();
 </script>

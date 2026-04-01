@@ -170,6 +170,41 @@ app.post('/api/manual-entry', (req, res) => {
   res.json({ message: 'Entry saved successfully.', entry });
 });
 
+// PUT /api/entry — edit an existing shift by its original clockIn timestamp
+app.put('/api/entry', (req, res) => {
+  const { originalClockIn, employee, date, clockIn: newClockIn, clockOut: newClockOut, note } = req.body;
+
+  if (!originalClockIn) {
+    return res.status(400).json({ error: 'originalClockIn is required to identify the entry.' });
+  }
+  if (!employee || !EMPLOYEES.includes(employee)) {
+    return res.status(400).json({ error: 'Invalid employee name.' });
+  }
+  if (!date || !newClockIn || !newClockOut) {
+    return res.status(400).json({ error: 'Date, clock-in, and clock-out are required.' });
+  }
+
+  const clockInISO = new Date(`${date}T${newClockIn}`).toISOString();
+  const clockOutISO = new Date(`${date}T${newClockOut}`).toISOString();
+
+  if (new Date(clockOutISO) <= new Date(clockInISO)) {
+    return res.status(400).json({ error: 'Clock-out time must be after clock-in time.' });
+  }
+  if (!(note || '').trim()) {
+    return res.status(400).json({ error: 'Description is required.' });
+  }
+
+  const log = readLog();
+  const idx = log.findIndex(e => e.clockIn === originalClockIn);
+  if (idx === -1) {
+    return res.status(404).json({ error: 'Entry not found.' });
+  }
+
+  log[idx] = { employee, clockIn: clockInISO, clockOut: clockOutISO, note: note.trim(), date };
+  writeLog(log);
+  res.json({ message: 'Entry updated successfully.', entry: log[idx] });
+});
+
 // GET /api/employees
 app.get('/api/employees', (req, res) => {
   res.json(EMPLOYEES);

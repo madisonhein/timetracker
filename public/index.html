@@ -185,7 +185,7 @@
     </div>
 
     <div class="field note-field" id="noteField">
-      <label for="note">What did you work on?</label>
+      <label for="note">What did you work on? <span style="color:#ef4444;">*</span></label>
       <textarea id="note" placeholder="Brief description of your work…"></textarea>
     </div>
 
@@ -271,6 +271,9 @@
 
     if (isClockedIn) {
       const note = noteEl.value.trim();
+      if (!note) {
+        return showMessage('Please enter a description of what you worked on before clocking out.', 'error');
+      }
       const res = await fetch('/api/clockout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
